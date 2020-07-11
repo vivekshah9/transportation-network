@@ -1,0 +1,89 @@
+DC_Capacity = open("dc50_cust5000_inst2\dc_cap.txt","r")
+Capacity = DC_Capacity.read()
+Capacity
+DC_Cap = []
+DC_Cap = Capacity.split() 
+DC_Cap
+DC_Cap =[int(i) for i in DC_Cap]
+DC_Cap 
+
+DC_Cost = open("dc50_cust5000_inst2\dc_cost.txt","r")
+Cost = DC_Cost.read()
+Cost
+DC_Cost = []
+DC_Cost = Cost.split() 
+DC_Cost
+DC_Cost =[int(i) for i in DC_Cost]
+DC_Cost 
+
+Demand = open("dc50_cust5000_inst2\demand.txt","r")
+Customer_Demand = Demand.read()
+Customer_Demand
+Demand = []
+Demand = Customer_Demand.split() 
+Demand
+Demand =[int(i) for i in Demand]
+Demand 
+
+Transportation_Cost = open("dc50_cust5000_inst2\\unit_tran_cost.txt","r")
+Unit_Cost = Transportation_Cost.read().split('\n')
+Unit_Cost
+Unit_Transportation_Cost = []
+for line in Unit_Cost:
+    inner_list = [int(elt.strip()) for elt in line.split(',')] 
+    Unit_Transportation_Cost.append(inner_list)
+Unit_Transportation_Cost
+
+Demandstring ="D"
+Demandlist=[]
+for i in range(1,5001):
+    Demandlist.append(Demandstring+str(i))
+Demandlist
+
+Supplystring ="S"
+DClist=[]
+for i in range(1,51):
+    DClist.append(Supplystring+str(i))
+DClist
+
+import pulp
+from pulp import *
+
+Dictionary_DC_Capacity = makeDict([DClist],DC_Cap,0) 
+Dictionary_DC_Capacity
+
+Dictionary_DC_Cost = makeDict([DClist], DC_Cost,0)
+Dictionary_DC_Cost
+
+Dictionary_Demand = makeDict([Demandlist],Demand,0)
+Dictionary_Demand
+
+Dictionary_Tranportation_costs = makeDict([Demandlist,DClist],Unit_Transportation_Cost,0)
+Dictionary_Tranportation_costs
+
+Problem = LpProblem("Network Design Problem", LpMinimize)
+x = LpVariable.dicts("X", (Demandlist,DClist), lowBound = 0, cat ="Integer")
+x
+
+y = LpVariable.dicts("Y", (DClist), lowBound = 0, cat = "Binary")
+y
+
+routes = [(d,s) for d in Demandlist for s in DClist]
+routes
+
+Problem += lpSum([x[d][s]*Dictionary_Tranportation_costs[d][s] for (d,s) in routes]) \
++lpSum([y[w]*Dictionary_DC_Cost[w] for w in DClist])
+
+for s in DClist:
+    Problem += lpSum([x[d][s] for d in Demandlist]) <= [y[s]*Dictionary_DC_Capacity[s]]
+
+for d in Demandlist:
+    Problem += lpSum([x[d][s] for s in DClist]) >= Dictionary_Demand[d]
+
+Problem.writeLP("NetworkDesignProblem8.lp")
+Problem.solve(CPLEX(msg = 0))
+LpStatus[Problem.status]
+for i in Problem.variables(): 
+    print (i.name, "=", i.varValue) 
+
+print("objective=", value(Problem.objective))

@@ -1,0 +1,88 @@
+#dep5_inst1
+
+#Read the flows between department and load its content in an empty list
+Flows = [] #we create an empty list or dic
+with open('FacilityDesign_SameArea\dep5_inst1/flows.txt', 'r') as flows:
+    for line in flows:
+        inner_list = [int(elt.strip()) for elt in line.split(',')] #convert the strings in the list to integers 
+        Flows.append(inner_list)
+Flows
+#.strip() with no arguments removes all whitespace at the start and end, including spaces, tabs, 
+#newlines and carriage returns.
+
+
+#Read the unit_costs between loacations and load its content in an empty list
+Unit_Cost = []
+with open('FacilityDesign_SameArea\dep5_inst1/unit_cost.txt', 'r') as unit_cost:
+    for line in unit_cost:
+        inner_list = [int(elt.strip()) for elt in line.split(',')] 
+        Unit_Cost.append(inner_list)
+Unit_Cost
+
+# Create a list which contains all the department nodes
+Departmentlist=[]
+for i in range(1,6):
+    Departmentlist.append(i)
+Departmentlist
+
+# Create a list which contains all the location nodes
+Locationlist=[]
+for i in range(1,6):
+    Locationlist.append(i)
+Locationlist
+
+import pulp
+from pulp import *
+
+# Creat a dictionary with the strings in Departmentlists  as the keys and the corresponding Flows data as their values
+Dic_Flows = makeDict([Departmentlist,Departmentlist],Flows,0) 
+Dic_Flows
+
+# Creat a dictionary with the strings in Locationlists  as the keys and the corresponding Unit_Cost data as their values
+Dic_Unit_Cost = makeDict([Locationlist,Locationlist],Unit_Cost,0) 
+Dic_Unit_Cost
+
+
+#A variable called Problem (although its name is not important) is created using the LpProblem function. 
+#It has two parameters, the first being the arbitrary name of this problem (as a string), and the 
+#second parameter being  LpMinimize as our objective is to minimize the transportation cost between departments
+Problem = LpProblem("Facilit Design Problem", LpMinimize)
+
+#Decision  variables are defined
+x = LpVariable.dicts("X", (Departmentlist,Locationlist), lowBound = 0, cat ="Binary")
+x
+
+#variable y is introduced to linearize the non linear x terms 
+y = LpVariable.dicts("Y",(Departmentlist,Locationlist,Departmentlist,Locationlist), lowBound = 0, cat ="Binary")
+y
+
+#Objective function in defined using sum and for loop function
+Problem += sum(sum(sum(sum(Dic_Unit_Cost[j][l]*Dic_Flows[i][k]*y[i][j][k][l] for l in Locationlist)for k in Departmentlist)for j in Locationlist)for i in Departmentlist) 
+
+#all the Constraints for departments are added using the for loop function
+for d in Departmentlist:
+    Problem += sum([x[d][l] for l in Locationlist]) == 1
+
+#all the Constraints for locations are added using the for loop function
+for l in Locationlist:
+    Problem += sum([x[d][l] for d in Departmentlist]) == 1
+len(Flows)
+
+#the for loop function is used for adding the linearizing constraints
+for i in Departmentlist:
+    for j in Locationlist:
+        for k in range(i+1,len(Flows)+1):
+            for l in Locationlist:
+                Problem += y[i][j][k][l] >= x[i][j] + x[k][l] - 1
+                Problem += y[i][j][k][l] <= x[i][j] 
+                Problem += y[i][j][k][l] <= x[k][l]
+
+#The LP problem is written using the .writeLP() function, it is solved using the 
+#.solve() function, the variables and objective is printed.
+Problem.writeLP("FacilitDesignProblemINST1.lp")
+Problem.solve()
+LpStatus[Problem.status]
+for i in Problem.variables(): 
+    print (i.name, "=", i.varValue) 
+
+print("objective=", value(Problem.objective))

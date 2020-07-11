@@ -1,0 +1,118 @@
+
+#READ THE DC CAPACITY FILE AND LOAD ITS CONTENT TO AN EMPTY LIST
+DC_Capacity = open("dc20_cust2000_inst1\dc_cap.txt","r")
+Capacity = DC_Capacity.read()
+Capacity
+DC_Cap = [] #we create an empty list or dic
+DC_Cap = Capacity.split() #we split the content of the file into items
+DC_Cap
+DC_Cap =[int(i) for i in DC_Cap]
+DC_Cap 
+
+DC_Cost = open("dc20_cust2000_inst1\dc_cost.txt","r")
+Cost = DC_Cost.read()
+Cost
+DC_Cost = []
+DC_Cost = Cost.split() 
+DC_Cost
+DC_Cost =[int(i) for i in DC_Cost]#convert the strings in the list to integers 
+DC_Cost 
+
+Demand = open("dc20_cust2000_inst1\demand.txt","r")
+Customer_Demand = Demand.read()
+Customer_Demand
+Demand = []
+Demand = Customer_Demand.split() 
+Demand
+Demand =[int(i) for i in Demand]
+Demand 
+#read "unit_tran_cost" file and load its content to an empty list
+Transportation_Cost = open("dc20_cust2000_inst1\\unit_tran_cost.txt","r")
+Unit_Cost = Transportation_Cost.read().split('\n')
+Unit_Cost
+Unit_Transportation_Cost = []
+for line in Unit_Cost:
+    inner_list = [int(elt.strip()) for elt in line.split(',')] 
+    Unit_Transportation_Cost.append(inner_list)
+Unit_Transportation_Cost
+#.strip() with no arguments removes all whitespace at the start and end, including spaces, tabs, 
+#newlines and carriage returns.
+
+# Create a list which contains all the demand nodes
+Demandstring ="D"
+Demandlist=[]
+for i in range(1,2001):
+    Demandlist.append(Demandstring+str(i))
+Demandlist
+
+# Create a list which contains all the supply nodes
+Supplystring ="S"
+DClist=[]
+for i in range(1,21):
+    DClist.append(Supplystring+str(i))
+DClist
+
+import pulp
+from pulp import *
+
+# Creat a dictionary with the strings in DClist as the keys and the corresponding capacity data as their values
+Dictionary_DC_Capacity = makeDict([DClist],DC_Cap,0) 
+Dictionary_DC_Capacity
+
+# Creat a dictionary with the strings in DClist as the keys and the corresponding Dc_cost as their values
+Dictionary_DC_Cost = makeDict([DClist], DC_Cost,0)
+Dictionary_DC_Cost
+
+# Creat a dictionary with the strings in Demandlist as the keys and the corresponding demand data as their values
+Dictionary_Demand = makeDict([Demandlist],Demand,0)
+Dictionary_Demand
+
+# Creat a dictionary with the strings in Demandlist,DClist as the keys and the corresponding Unit transportation cost data as their values
+Dictionary_Tranportation_costs = makeDict([Demandlist,DClist],Unit_Transportation_Cost,0)
+Dictionary_Tranportation_costs
+
+#A variable called Problem (although its name is not important) is created using the LpProblem function. 
+#It has two parameters, the first being the arbitrary name of this problem (as a string), and the 
+#second parameter being  LpMinimize as our objective is to minimize the transportation cost
+Problem = LpProblem("Network Design Problem", LpMinimize)
+
+#Decision  variables are defined
+x = LpVariable.dicts("X", (Demandlist,DClist), lowBound = 0, cat ="Integer")
+x
+
+y = LpVariable.dicts("Y", (DClist), lowBound = 0, cat = "Binary")
+y
+
+#routes between each of  the distribution center and customer demand is shown
+routes = [(d,s) for d in Demandlist for s in DClist]
+routes
+
+#objective function is defined where all transportation cost between dc and demand
+#is added using lpSum and the dc cost is also added
+Problem += lpSum([x[d][s]*Dictionary_Tranportation_costs[d][s] for (d,s) in routes]) \
++lpSum([y[w]*Dictionary_DC_Cost[w] for w in DClist])
+
+#all the Dc constraints are added using the for loop function
+for s in DClist:
+    Problem += lpSum([x[d][s] for d in Demandlist]) <= [y[s]*Dictionary_DC_Capacity[s]]
+
+#all the demand constraints are added using the for loop function
+for d in Demandlist:
+    Problem += lpSum([x[d][s] for s in DClist]) >= Dictionary_Demand[d]
+
+#The LP problem is written using the .writeLP() function, it is solved using the 
+#.solve(CPLEX(msg = 0)) function, the variables and objective is printed.
+Problem.writeLP("NetworkDesignProblem1.lp")
+Problem.solve(CPLEX(msg = 0))
+LpStatus[Problem.status]
+for i in Problem.variables(): 
+    print (i.name, "=", i.varValue) 
+
+print("objective=", value(Problem.objective))
+
+
+
+
+
+
+

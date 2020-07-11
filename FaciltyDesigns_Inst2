@@ -1,0 +1,68 @@
+#dep5_inst2
+
+Flows = []
+with open('FacilityDesign_SameArea\dep5_inst2/flows.txt', 'r') as flows:
+    for line in flows:
+        inner_list = [int(elt.strip()) for elt in line.split(',')] 
+        Flows.append(inner_list)
+Flows
+
+Unit_Cost = []
+with open('FacilityDesign_SameArea\dep5_inst2/unit_cost.txt', 'r') as unit_cost:
+    for line in unit_cost:
+        inner_list = [int(elt.strip()) for elt in line.split(',')] 
+        Unit_Cost.append(inner_list)
+Unit_Cost
+
+Departmentlist=[]
+for i in range(1,6):
+    Departmentlist.append(i)
+Departmentlist
+
+
+Locationlist=[]
+for i in range(1,6):
+    Locationlist.append(i)
+Locationlist
+
+import pulp
+from pulp import *
+
+Dic_Flows = makeDict([Departmentlist,Departmentlist],Flows,0) 
+Dic_Flows
+
+Dic_Unit_Cost = makeDict([Locationlist,Locationlist],Unit_Cost,0) 
+Dic_Unit_Cost
+
+Problem = LpProblem("Facilit Design Problem", LpMinimize)
+x = LpVariable.dicts("X", (Departmentlist,Locationlist), lowBound = 0, cat ="Binary")
+x
+
+y = LpVariable.dicts("Y",(Departmentlist,Locationlist,Departmentlist,Locationlist), lowBound = 0, cat ="Binary")
+y
+
+Problem += sum(sum(sum(sum(Dic_Unit_Cost[j][l]*Dic_Flows[i][k]*y[i][j][k][l] for l in Locationlist)for k in Departmentlist)for j in Locationlist)for i in Departmentlist) 
+
+for d in Departmentlist:
+    Problem += sum([x[d][l] for l in Locationlist]) == 1
+
+for l in Locationlist:
+    Problem += sum([x[d][l] for d in Departmentlist]) == 1
+len(Flows)
+for i in Departmentlist:
+    for j in Locationlist:
+        for k in range(i+1,len(Flows)+1):
+            for l in Locationlist:
+                Problem += y[i][j][k][l] >= x[i][j] + x[k][l] - 1
+                Problem += y[i][j][k][l] <= x[i][j] 
+                Problem += y[i][j][k][l] <= x[k][l]
+
+
+Problem.writeLP("FacilitDesignProblemINST2.lp")
+Problem.solve()
+LpStatus[Problem.status]
+for i in Problem.variables(): 
+    print (i.name, "=", i.varValue) 
+
+print("objective=", value(Problem.objective))
+
